@@ -103,7 +103,7 @@ class CVF(object):
 		return proceedings
 
 	
-	def accepted_papers(self, use_checkpoint=True, kw='cvpr'):
+	def accepted_papers(self, use_checkpoint=True, kw='neurips'):
 		completed_years =  utils.load_cached_years(kw)
 		proceedings = self.build_proceedings_list(kw=kw)
 

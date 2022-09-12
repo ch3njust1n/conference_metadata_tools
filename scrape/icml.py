@@ -9,9 +9,9 @@ import urllib.request
 from collections import defaultdict
 from tqdm import tqdm
 
-import api.utils as utils
+import scrape.utils as utils
 from bs4 import BeautifulSoup
-from api.batcher import batch_process
+from scrape.batcher import batch_process
 
 class ICML(object):
 	def __init__(self, year, logname):

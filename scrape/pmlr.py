@@ -10,9 +10,9 @@ from collections import defaultdict
 from tqdm import tqdm
 from pprint import pprint
 
-import api.utils as utils
+import scrape.utils as utils
 from bs4 import BeautifulSoup
-from api.batcher import batch_process
+from scrape.batcher import batch_process
 
 class PMLR(object):
 	def __init__(self, year, logname):
