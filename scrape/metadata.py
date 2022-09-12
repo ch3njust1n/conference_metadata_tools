@@ -1,9 +1,9 @@
-from api.neurips import NeurIPS
-from api.icml import ICML
-from api.pmlr import PMLR
-from api.iclr import ICLR
-from api.acl import *
-from api.cvf import CVF
+from scrape.neurips import NeurIPS
+from scrape.icml import ICML
+from scrape.pmlr import PMLR
+from scrape.iclr import ICLR
+from scrape.acl import *
+from scrape.cvf import CVF
 
 def conference(name, year, logname):
 	name = name.lower()

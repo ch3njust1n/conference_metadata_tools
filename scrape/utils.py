@@ -5,6 +5,8 @@ import re
 import json
 import logging
 from time import time
+import urllib.request
+from bs4 import BeautifulSoup, Tag
 
 '''
 Save json data
@@ -93,7 +95,12 @@ outputs:
 years (set) Years completed
 '''
 def load_cached_years(conf):
-    return {re.search(r'\d{4}', file).group() for file in os.listdir(conf)}
+    api = f"https://github.com/ch3njust1n/conference_metadata/tree/main/api/{conf}"
+    resp = urllib.request.urlopen(api)
+    soup = BeautifulSoup(resp.read(), 'html.parser', from_encoding='utf-8')
+    files = [link.text for link in soup.find_all('a') if link.text.endswith('.json')]
+    
+    return {re.search(r'\d{4}', file).group() for file in files}
 
 
 '''
