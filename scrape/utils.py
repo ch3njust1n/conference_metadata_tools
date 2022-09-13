@@ -73,16 +73,18 @@ def unix_epoch():
 
 '''
 inputs:
-html   (bs4.element.Tag) BeautifulSoup element
-tag    (string)          Tag type
-prop   (string)          Property contained in tag
-substr (string)          Substring of property
+url    (string) BeautifulSoup element
+tag    (string) Tag type
+prop   (string) Property contained in tag
+substr (string) Substring of property
 
 outputs:
 tags   (list) List of bs4.element.Tag objects with specific properties containing substrings
 '''
-def get_tags(html, tag, prop, substr): 
-    return [t[prop] for t in html.find_all(tag, href=True) if substr in t[prop]]
+def get_tags(url, tag, prop, substr):
+	page = urllib.request.urlopen(url)
+	html = BeautifulSoup(page.read(), 'html.parser', from_encoding='utf-8')
+	return [t[prop] for t in html.find_all(tag, href=True) if substr in t[prop]]
 
 
 '''
