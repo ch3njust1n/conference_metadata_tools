@@ -3,6 +3,7 @@
 import os
 import sys
 import logging
+from collections import defaultdict
 
 from selenium import webdriver
 from selenium.webdriver.support.ui import WebDriverWait
@@ -20,6 +21,7 @@ class ICLR(object):
 		self.log = logging.getLogger(logname)
 		self.year = str(year)
 		self.base = ''
+		self.proceedings = defaultdict(dict)
 		self.proceedings_urls = {
 			'2013': 'https://iclr.cc/archive/2013/conference-proceedings.html',
 			'2014': 'https://iclr.cc/archive/2014/conference-proceedings/',
@@ -59,35 +61,18 @@ class ICLR(object):
 		
 		# ignore nav buttons
 		return len(pagination_bar.find_elements(By.TAG_NAME, 'li')) - 4
-		
+
 
 	'''
-	Get all accepted papers from NIPS. In some cases, the name of the final submission is different
-	from the name of the paper on Arxiv. May need to use binary classifier for these cases.
-
 	inputs:
-
+ 
 	outputs:
-	papers (list) List of dicts of accepted papers with keys as the paper title and value as the authors.
-	'''
-	def accepted_papers(self, use_checkpoint=True):
-
-		url = self.proceedings_urls['2022']['main']
-		self.driver.get(url)
-		delay = 500
-
-		search_field_xpath = '//*[@id="paper-search-input"]'
-		wait = WebDriverWait(self.driver, delay)
-		wait.until(EC.element_to_be_clickable((By.XPATH, search_field_xpath)))
-
-		#oral_submissions_xpath = '//*[@id="oral-submissions"]/ul'
+ 	'''
+	def extract_metadata(self):
 		oral_submissions_class = 'note '
-		# submission_list = self.driver.find_elements(By.XPATH, oral_submissions_xpath)
-		submission_list = self.driver.find_elements(By.CLASS_NAME, oral_submissions_class)
-		total_submissions = len(submission_list)
-
-		proceedings = []
-
+		oral_submissions_id = 'oral-submissions'
+		total_pages = self.get_page_count()
+  
 		def extract_authors(authors):
 			result = []
 
@@ -102,29 +87,58 @@ class ICLR(object):
 
 			return result
 
-		# Minus one because starting on the first page
-		for page in range(self.get_page_count()-1):
+		for page in range(total_pages):
+			submission_section = self.driver.find_element(By.ID, oral_submissions_id)
+			submission_list = submission_section.find_elements(By.CLASS_NAME, oral_submissions_class)
+			total_submissions = len(submission_list)
+			print(f'{total_submissions} on page {page}')
+
 			for i in range(1, total_submissions+1):
-				title = self.driver.find_element(By.XPATH, f'//*[@id="oral-submissions"]/ul/li[{i}]/h4/a[1]')
-				authors = self.driver.find_element(By.XPATH, f'//*[@id="oral-submissions"]/ul/li[{i}]/div[1]')
-				pdf = self.driver.find_element(By.XPATH, f'//*[@id="oral-submissions"]/ul/li[{i}]/h4/a[2]')
+				try:
+					title = self.driver.find_element(By.XPATH, f'//*[@id="oral-submissions"]/ul/li[{i}]/h4/a[1]').text.strip()
+					authors = self.driver.find_element(By.XPATH, f'//*[@id="oral-submissions"]/ul/li[{i}]/div[1]')
+					pdf = self.driver.find_element(By.XPATH, f'//*[@id="oral-submissions"]/ul/li[{i}]/h4/a[2]')
+					
+					if title not in self.proceedings:
+						self.proceedings[title] = {
+							"title": title,
+							"authors": extract_authors(authors.text),
+							"url": pdf.get_property('href')
+						}
+				except Exception as e:
+					self.log.debug(f'page: {page}\tpaper: {i}\t{e}')
 
-				paper = {
-					"title": title.text.strip(),
-					"authors": extract_authors(authors.text),
-					"url": pdf.get_property('href')
-				}
-				
-				proceedings.append(paper)
-
-			# Add 2 to account for both left arrows in pagination
-			self.driver.find_element(By.XPATH, f'//*[@id="oral-submissions"]/nav/ul/li[{page+4}]/a').click()
-			# wait = WebDriverWait(self.driver, 3)
-			# wait.until(EC.element_to_be_clickable((By.XPATH, '//*[@id="paper-search-input"]'))) 
-			# break
-
-		pprint(proceedings)
-		print(f'total: {total_submissions}')
+			# Add 4 to account for both left arrows in pagination
+			if page < total_pages - 1:
+				self.driver.find_element(By.XPATH, f'//*[@id="oral-submissions"]/nav/ul/li[{page+4}]/a').click()
 		
-		utils.save_json(f'./iclr', f'iclr_{2022}', proceedings)
-		# sys.exit(0)
+
+	'''
+	Get all accepted papers from NIPS. In some cases, the name of the final submission is different
+	from the name of the paper on Arxiv. May need to use binary classifier for these cases.
+
+	inputs:
+
+	outputs:
+	papers (list) List of dicts of accepted papers with keys as the paper title and value as the authors.
+	'''
+	def accepted_papers(self, use_checkpoint=True):
+
+		url = self.proceedings_urls['2022']['main']
+		sections = ['oral-submissions', 'spotlight-submissions', 'poster-submissions']
+
+		for sect in sections:
+			self.driver.get('#'.join([url, sect]))
+			delay = 500
+
+			search_field_xpath = '//*[@id="paper-search-input"]'
+			wait = WebDriverWait(self.driver, delay)
+			wait.until(EC.element_to_be_clickable((By.XPATH, search_field_xpath)))
+
+			self.extract_metadata()
+
+		# Convert to JSON format
+		self.proceedings = [{ 'title': key, 'authors': val['authors'], 'url': val['url']} for key, val in self.proceedings.items()]
+		print(f'total: {len(self.proceedings)}')
+  
+		utils.save_json(f'./iclr', f'iclr_{2022}', self.proceedings)
