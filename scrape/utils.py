@@ -82,7 +82,7 @@ outputs:
 tags   (list) List of bs4.element.Tag objects with specific properties containing substrings
 '''
 def get_tags(html, tag, prop, substr): 
-    return [t[prop] for t in html.find_all(tag) if substr in t[prop]]
+    return [t[prop] for t in html.find_all(tag, href=True) if substr in t[prop]]
 
 
 '''
@@ -95,12 +95,16 @@ outputs:
 years (set) Years completed
 '''
 def load_cached_years(conf):
-    api = f"https://github.com/ch3njust1n/conference_metadata/tree/main/api/{conf}"
-    resp = urllib.request.urlopen(api)
-    soup = BeautifulSoup(resp.read(), 'html.parser', from_encoding='utf-8')
-    files = [link.text for link in soup.find_all('a') if link.text.endswith('.json')]
-    
-    return {re.search(r'\d{4}', file).group() for file in files}
+    try:
+        api = f"https://github.com/ch3njust1n/conference_metadata/tree/main/api/{conf}"
+        resp = urllib.request.urlopen(api)
+        soup = BeautifulSoup(resp.read(), 'html.parser', from_encoding='utf-8')
+        files = [link.text for link in soup.find_all('a') if link.text.endswith('.json')]
+        
+        return {re.search(r'\d{4}', file).group() for file in files}
+    except Exception as e:
+        return set()
+
 
 
 '''
