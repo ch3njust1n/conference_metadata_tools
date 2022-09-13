@@ -97,13 +97,11 @@ class CVF(object):
 						paper["url"] = [utils.join_url([self.base, link['href']]) for link in tag.find_all('a', href=True) if link['href'].endswith('.pdf')]
 						proceedings.append(paper)
 
-					print(paper)
-					if count == 3: print('\n\n')
 
 		return proceedings
 
 	
-	def accepted_papers(self, use_checkpoint=True, kw='neurips'):
+	def accepted_papers(self, use_checkpoint=True, kw='cvpr'):
 		completed_years =  utils.load_cached_years(kw)
 		proceedings = self.build_proceedings_list(kw=kw)
 
@@ -132,4 +130,3 @@ class CVF(object):
 					utils.save_json(f'./{kw}', f'{kw}_{year}', papers)
 			else:
 				pass
-			break
