@@ -24,31 +24,43 @@ class ICLR(object):
 		self.base = ''
 		self.titles = set()
 		self.proceedings_urls = {
-			'2013': 'https://iclr.cc/archive/2013/conference-proceedings.html',
-			'2014': 'https://iclr.cc/archive/2014/conference-proceedings/',
-			'2015': 'https://iclr.cc/archive/www/doku.php%3Fid=iclr2015:accepted-main.html',
-			'2016': 'https://iclr.cc/archive/www/doku.php%3Fid=iclr2016:accepted-main.html',
-			'2017': 'https://iclr.cc/archive/www/doku.php%3Fid=iclr2017:conference_posters.html',
-			'2018': {
-				'main': 'https://openreview.net/group?id=ICLR.cc/2018/Conference',
-				'workshop': 'https://openreview.net/group?id=ICLR.cc/2018/Workshop'
-			},
-			'2019': {
-				'main': 'https://openreview.net/group?id=ICLR.cc/2019/Conference',
-				'workshop': 'https://openreview.net/group?id=ICLR.cc/2019/Workshop'
-			},
-			'2020': {
-				'main': 'https://openreview.net/group?id=ICLR.cc/2020/Conference',
-				'workshop': 'https://openreview.net/group?id=ICLR.cc/2020/Workshop'
-			},
-			'2021': {
-				'main': 'https://openreview.net/group?id=ICLR.cc/2021/Conference',
-				'workshop': 'https://openreview.net/group?id=ICLR.cc/2021/Workshop'
-			},
-			'2022': {
-				'main': 'https://openreview.net/group?id=ICLR.cc/2022/Conference',
-				'workshop': 'https://openreview.net/group?id=ICLR.cc/2022/Workshop'
-			}
+			'2013': ['https://iclr.cc/archive/2013/conference-proceedings.html'],
+			'2014': ['https://iclr.cc/archive/2014/conference-proceedings/'],
+			'2015': ['https://iclr.cc/archive/www/doku.php%3Fid=iclr2015:accepted-main.html'],
+			'2016': ['https://iclr.cc/archive/www/doku.php%3Fid=iclr2016:accepted-main.html'],
+			'2017': ['https://iclr.cc/archive/www/doku.php%3Fid=iclr2017:conference_posters.html'],
+			'2018': [
+				'https://openreview.net/group?id=ICLR.cc/2018/Conference',
+				'https://openreview.net/group?id=ICLR.cc/2018/Workshop'
+			],
+			'2019': [
+				'https://openreview.net/group?id=ICLR.cc/2019/Conference',
+				'https://openreview.net/group?id=ICLR.cc/2019/Workshop'
+			],
+			'2020': [
+				'https://openreview.net/group?id=ICLR.cc/2020/Conference',
+				'https://openreview.net/group?id=ICLR.cc/2020/Workshop'
+			],
+			'2021': [
+				'https://openreview.net/group?id=ICLR.cc/2021/Conference',
+				'https://openreview.net/group?id=ICLR.cc/2021/Workshop'
+			],
+			'2022': [
+				'https://openreview.net/group?id=ICLR.cc/2022/Conference',
+				'https://openreview.net/group?id=ICLR.cc/2022/Workshop/DGM4HSD',
+				'https://openreview.net/group?id=ICLR.cc/2022/Workshop/DLG4NLP',
+				'https://openreview.net/group?id=ICLR.cc/2022/Workshop/MLDD',
+				'https://openreview.net/group?id=ICLR.cc/2022/Workshop/AfricaNLP',
+				'https://openreview.net/group?id=ICLR.cc/2022/Workshop/GPL',
+				'https://openreview.net/group?id=ICLR.cc/2022/Workshop/PAIR2Struct',
+				'https://openreview.net/group?id=ICLR.cc/2022/Workshop/EmeCom',
+				'https://openreview.net/group?id=ICLR.cc/2022/Workshop/DL4C',
+				'https://openreview.net/group?id=ICLR.cc/2022/Workshop/Cells2Societies',
+				'https://openreview.net/group?id=ICLR.cc/2022/Workshop/GTRL',
+				'https://openreview.net/group?id=ICLR.cc/2022/Workshop/ALOE',
+				'https://openreview.net/group?id=ICLR.cc/2022/Workshop/GMS',
+				'https://openreview.net/group?id=ICLR.cc/2022/Workshop/OSC'
+			]
 		}
 
 
@@ -109,7 +121,7 @@ class ICLR(object):
 						# print(title)
 
 						authors = self.driver.find_element(By.XPATH, f'//*[@id="{section}"]/ul/li[{i}]/div[1]')
-						pdf = self.driver.find_element(By.XPATH, f'//*[@id="{section}"]/ul/li[{i}]/h4/a[2]')
+						pdf = self.driver.find_element(By.XPATH, f'//*[@id="{section}"]/ul/li[{i}]/h4/a[2]') 
 
 						proceedings.append({
 							"title": title,
@@ -142,33 +154,43 @@ class ICLR(object):
 	papers (list) List of dicts of accepted papers with keys as the paper title and value as the authors.
 	'''
 	def accepted_papers(self, use_checkpoint=True):
-
-		url = self.driver.get(self.proceedings_urls['2022']['main'])
-		delay = 500
-
-		search_field_xpath = '//*[@id="paper-search-input"]'
-		wait = WebDriverWait(self.driver, delay)
-		wait.until(EC.element_to_be_clickable((By.XPATH, search_field_xpath)))
-
-		sections = {
-			'poster-submissions': '/html/body/div[1]/div[3]/div/div/main/div/div[3]/div/div[1]/ul/li[4]/a',
-			'spotlight-submissions': '/html/body/div[1]/div[3]/div/div/main/div/div[3]/div/div[1]/ul/li[3]/a',
-			'oral-submissions': '/html/body/div[1]/div[3]/div/div/main/div/div[3]/div/div[1]/ul/li[2]/a',  
-		}
-
+		
 		proceedings = []
+		conf_links = self.proceedings_urls[self.year]
 
-		for tab_title, tab_xpath in sections.items():
-			print(tab_title)
-			
-			# Move to the top of the page
-			self.driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.CONTROL + Keys.HOME)
-			time.sleep(3)
+		if isinstance(conf_links, str): 
+			conf_links = [conf_links]
 
-			# Click on tab
-			self.driver.find_element(By.XPATH, tab_xpath).click()
+		for link in conf_links:
+			self.driver.get(link)
+			delay = 500
 
-			proceedings.extend(self.extract_metadata(tab_title))
+			search_field_xpath = '//*[@id="paper-search-input"]'
+			wait = WebDriverWait(self.driver, delay)
+			wait.until(EC.element_to_be_clickable((By.XPATH, search_field_xpath)))
+
+			sections = {
+				'poster-submissions': '/html/body/div[1]/div[3]/div/div/main/div/div[3]/div/div[1]/ul/li[4]/a',
+				'spotlight-submissions': '/html/body/div[1]/div[3]/div/div/main/div/div[3]/div/div[1]/ul/li[3]/a',
+				'oral-submissions': '/html/body/div[1]/div[3]/div/div/main/div/div[3]/div/div[1]/ul/li[2]/a',
+				'accept-poster-': '/html/body/div[1]/div[3]/div/div/main/div/div[3]/div/div[1]/ul/li[3]/a',
+				'accept-oral-': '/html/body/div[1]/div[3]/div/div/main/div/div[3]/div/div[1]/ul/li[2]/a'
+			}
+
+			for tab_title, tab_xpath in sections.items():
+				
+				# Move to the top of the page
+				self.driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.CONTROL + Keys.HOME)
+				time.sleep(3)
+
+				try:
+					# Click on tab
+					self.driver.find_element(By.XPATH, tab_xpath).click()
+					print(tab_title)
+
+					proceedings.extend(self.extract_metadata(tab_title))
+				except Exception as e:
+					pass
 
 		print(f'total": {len(proceedings)}')
   
