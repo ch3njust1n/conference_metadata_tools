@@ -13,8 +13,8 @@ from selenium.common.exceptions import TimeoutException
 from selenium.webdriver import ActionChains
 from selenium.webdriver.common.keys import Keys
 
-from pprint import pprint
 from scrape import utils
+from tqdm import tqdm
 
 class ICLR(object):
 	def __init__(self, year, logname):
@@ -46,7 +46,7 @@ class ICLR(object):
 				'https://openreview.net/group?id=ICLR.cc/2021/Workshop'
 			],
 			'2022': [
-				'https://openreview.net/group?id=ICLR.cc/2022/Conference',
+				# 'https://openreview.net/group?id=ICLR.cc/2022/Conference',
 				'https://openreview.net/group?id=ICLR.cc/2022/Workshop/DGM4HSD',
 				'https://openreview.net/group?id=ICLR.cc/2022/Workshop/DLG4NLP',
 				'https://openreview.net/group?id=ICLR.cc/2022/Workshop/MLDD',
@@ -82,13 +82,13 @@ class ICLR(object):
  	'''
 	def extract_metadata(self, section):
 		oral_submissions_class = 'note '
-		oral_submissions_id = 'oral-submissions'
+		oral_submissions_id = section
 
 		# total_pages = self.get_page_count()
 		total_pages = 20
 		self.driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.CONTROL + Keys.HOME)
 
-		print(f'{section} has {total_pages} pages')
+		self.log.debug(f'{section} has {total_pages} pages')
 		proceedings = []
   
 		def extract_authors(authors):
@@ -105,23 +105,26 @@ class ICLR(object):
 
 			return result
 
-		# TODO: Worse case, brute-force this with a fixed number
+		# TODO: Not entering this loop for workshops
 		for page in range(total_pages):
 			submission_section = self.driver.find_element(By.ID, oral_submissions_id)
 			submission_list = submission_section.find_elements(By.CLASS_NAME, oral_submissions_class)
 			total_submissions = len(submission_list)
-			print(f'{total_submissions} on page {page}')
+			
+			self.log.debug(f'{total_submissions} on page {page}')
 
 			for i in range(1, total_submissions+1):
 				try:
-					title = self.driver.find_element(By.XPATH, f'//*[@id="{section}"]/ul/li[{i}]/h4/a[1]').text.strip()
+					title_xpath = f'/html/body/div[1]/div[3]/div/div/main/div/div[3]/div/div[2]/div[3]/ul/li[{i}]/h4/a[1]'
+					title = self.driver.find_element(By.XPATH, title_xpath).text.strip()
 					
 					if not title in self.titles:
 						self.titles.add(title)
-						# print(title)
-
-						authors = self.driver.find_element(By.XPATH, f'//*[@id="{section}"]/ul/li[{i}]/div[1]')
-						pdf = self.driver.find_element(By.XPATH, f'//*[@id="{section}"]/ul/li[{i}]/h4/a[2]') 
+      
+						author_xpath = f'/html/body/div[1]/div[3]/div/div/main/div/div[3]/div/div[2]/div[3]/ul/li[{1}]/div[1]'
+						pdf_xpath = f'/html/body/div[1]/div[3]/div/div/main/div/div[3]/div/div[2]/div[3]/ul/li[{i}]/h4/a[2]'
+						authors = self.driver.find_element(By.XPATH, author_xpath)
+						pdf = self.driver.find_element(By.XPATH, pdf_xpath) 
 
 						proceedings.append({
 							"title": title,
@@ -136,7 +139,8 @@ class ICLR(object):
 			if page < total_pages - 1:
 				try:
 					self.driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-					self.driver.find_element(By.XPATH, f'//*[@id="{section}"]/nav/ul/li[{page+4}]/a').click()
+					nav_xpath = f'/html/body/div[1]/div[3]/div/div/main/div/div[3]/div/div[2]/div[2]/nav/ul/li[{page+4}]/a'
+					self.driver.find_element(By.XPATH, nav_xpath).click()
 					self.driver.execute_script("window.scrollTo(0, 0);")
 				except Exception as e:
 					break
@@ -160,44 +164,86 @@ class ICLR(object):
 
 		if isinstance(conf_links, str): 
 			conf_links = [conf_links]
+   
+   
+		sections = {
+			'poster-submissions': [
+       			'/html/body/div[1]/div[3]/div/div/main/div/div[3]/div/div[1]/ul/li[4]/a'
+			],
+			'spotlight-submissions': [
+       			'/html/body/div[1]/div[3]/div/div/main/div/div[3]/div/div[1]/ul/li[3]/a'
+			],
+			'oral-submissions': [
+       			'/html/body/div[1]/div[3]/div/div/main/div/div[3]/div/div[1]/ul/li[2]/a'
+			],
+			'accept--poster-': [
+       			'/html/body/div[1]/div[3]/div/div/main/div/div[3]/div/div[1]/ul/li[3]/a',
+				'/html/body/div[1]/div[3]/div/div/main/div/div[3]/div/div[2]/div[3]'
+          	],
+			'accept--oral-': [
+       			'/html/body/div[1]/div[3]/div/div/main/div/div[3]/div/div[1]/ul/li[2]/a',
+				'/html/body/div[1]/div[3]/div/div/main/div/div[3]/div/div[2]/div[2]'
+			],
+			'accept': [
+       			'/html/body/div[1]/div[3]/div/div/main/div/div[3]/div/div[2]/div[2]',
+				'/html/body/div[1]/div[3]/div/div/main/div/div[3]/div/div[2]/div[4]',
+				'/html/body/div[1]/div[3]/div/div/main/div/div[3]/div/div[2]/div[3]'
+			],
+			'accept-oral-': [
+       			'/html/body/div[1]/div[3]/div/div/main/div/div[3]/div/div[2]/div[2]'
+			],
+			'accept-poster-': [
+       			'/html/body/div[1]/div[3]/div/div/main/div/div[3]/div/div[2]/div[3]'
+			],
+			'accept--best-paper-': [
+       			'/html/body/div[1]/div[3]/div/div/main/div/div[3]/div/div[2]/div[2]'
+			],
+			'accept--spotlight-': [
+       			'/html/body/div[1]/div[3]/div/div/main/div/div[3]/div/div[2]/div[3]',
+				'/html/body/div[1]/div[3]/div/div/main/div/div[3]/div/div[2]/div[2]'
+          	]
+		} 
 
-		for i, link in enumerate(conf_links):
-			if i == 0:
-				self.driver.get(link)
-			else:
-				self.driver.switch_to_window(self.driver.window_handles[-1])
-				self.driver.get(link)
+		with tqdm(total=len(sections) * len(conf_links)) as pbar:
+			for i, link in enumerate(conf_links):
+				self.log.debug(f'============================\n{link}\n============================\n')
+		
+				if i == 0:
+					self.driver.get(link)
+				else:
+					self.driver.switch_to_window(self.driver.window_handles[-1])
+					self.driver.get(link)
 
 
-			delay = 500
+				delay = 10
 
-			search_field_xpath = '//*[@id="paper-search-input"]'
-			wait = WebDriverWait(self.driver, delay)
-			wait.until(EC.element_to_be_clickable((By.XPATH, search_field_xpath)))
-
-			sections = {
-				'poster-submissions': '/html/body/div[1]/div[3]/div/div/main/div/div[3]/div/div[1]/ul/li[4]/a',
-				'spotlight-submissions': '/html/body/div[1]/div[3]/div/div/main/div/div[3]/div/div[1]/ul/li[3]/a',
-				'oral-submissions': '/html/body/div[1]/div[3]/div/div/main/div/div[3]/div/div[1]/ul/li[2]/a',
-				'accept-poster-': '/html/body/div[1]/div[3]/div/div/main/div/div[3]/div/div[1]/ul/li[3]/a',
-				'accept-oral-': '/html/body/div[1]/div[3]/div/div/main/div/div[3]/div/div[1]/ul/li[2]/a'
-			}
-
-			for tab_title, tab_xpath in sections.items():
-				
-				# Move to the top of the page
-				self.driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.CONTROL + Keys.HOME)
-				time.sleep(3)
-
+				# TODO: If the tab is empty, this will block indefinitely. Need to figure out a better solution.
+				search_field_xpath = '//*[@id="paper-search-input"]'
 				try:
-					# Click on tab
-					self.driver.find_element(By.XPATH, tab_xpath).click()
-					print(tab_title)
+					wait = WebDriverWait(self.driver, delay)
+					wait.until(EC.element_to_be_clickable((By.XPATH, search_field_xpath)))
+				except TimeoutException:
+					self.log.debug(f'timeout: {link}')
 
-					proceedings.extend(self.extract_metadata(tab_title))
-				except Exception as e:
-					pass
 
-		print(f'total": {len(proceedings)}')
-  
+				for tab_id, tab_xpath in sections.items():
+					
+					# Move to the top of the page
+					self.driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.CONTROL + Keys.HOME)
+					time.sleep(3)
+
+					try:
+						# Click on tab
+						for xpath in tab_xpath:
+							tab = self.driver.find_element(By.XPATH, xpath)
+							if tab.text.lower() != 'reject':
+								tab.click()
+								proceedings.extend(self.extract_metadata(tab_id))
+					except Exception as e:
+						self.log.debug(f'Error getting {link}')
+						self.log.debug(e)
+      
+					pbar.update(1)
+
+		self.log.debug(f'total": {len(proceedings)}')
 		utils.save_json(f'./iclr', f'iclr_{2022}', proceedings)
