@@ -161,8 +161,14 @@ class ICLR(object):
 		if isinstance(conf_links, str): 
 			conf_links = [conf_links]
 
-		for link in conf_links:
-			self.driver.get(link)
+		for i, link in enumerate(conf_links):
+			if i == 0:
+				self.driver.get(link)
+			else:
+				self.driver.switch_to_window(self.driver.window_handles[-1])
+				self.driver.get(link)
+
+
 			delay = 500
 
 			search_field_xpath = '//*[@id="paper-search-input"]'
