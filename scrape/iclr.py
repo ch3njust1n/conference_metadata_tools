@@ -2,6 +2,7 @@
 '''
 import os
 import sys
+import time
 import logging
 from collections import defaultdict
 
@@ -56,11 +57,13 @@ class ICLR(object):
 	pages (int) Number of pages
 	'''
 	def get_page_count(self):
+		self.driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
 		pagination_xpath = '//*[@id="oral-submissions"]/nav/ul'
 		pagination_bar = self.driver.find_element(By.XPATH, pagination_xpath)
+		pages = len(pagination_bar.find_elements(By.TAG_NAME, 'li')) - 4 # ignore nav buttons
+		self.driver.execute_script("window.scrollTo(0, 0);")
 		
-		# ignore nav buttons
-		return len(pagination_bar.find_elements(By.TAG_NAME, 'li')) - 4
+		return pages
 
 
 	'''
@@ -68,7 +71,7 @@ class ICLR(object):
  
 	outputs:
  	'''
-	def extract_metadata(self):
+	def extract_metadata(self, section):
 		oral_submissions_class = 'note '
 		oral_submissions_id = 'oral-submissions'
 		total_pages = self.get_page_count()
@@ -95,9 +98,9 @@ class ICLR(object):
 
 			for i in range(1, total_submissions+1):
 				try:
-					title = self.driver.find_element(By.XPATH, f'//*[@id="oral-submissions"]/ul/li[{i}]/h4/a[1]').text.strip()
-					authors = self.driver.find_element(By.XPATH, f'//*[@id="oral-submissions"]/ul/li[{i}]/div[1]')
-					pdf = self.driver.find_element(By.XPATH, f'//*[@id="oral-submissions"]/ul/li[{i}]/h4/a[2]')
+					title = self.driver.find_element(By.XPATH, f'//*[@id="{section}"]/ul/li[{i}]/h4/a[1]').text.strip()
+					authors = self.driver.find_element(By.XPATH, f'//*[@id="{section}"]/ul/li[{i}]/div[1]')
+					pdf = self.driver.find_element(By.XPATH, f'//*[@id="{sectopm}"]/ul/li[{i}]/h4/a[2]')
 					
 					if title not in self.proceedings:
 						self.proceedings[title] = {
@@ -110,7 +113,10 @@ class ICLR(object):
 
 			# Add 4 to account for both left arrows in pagination
 			if page < total_pages - 1:
-				self.driver.find_element(By.XPATH, f'//*[@id="oral-submissions"]/nav/ul/li[{page+4}]/a').click()
+				self.driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+				self.driver.find_element(By.XPATH, f'//*[@id="{section}"]/nav/ul/li[{page+4}]/a').click()
+				time.sleep(3)
+				self.driver.execute_script("window.scrollTo(0, 0);")
 		
 
 	'''
@@ -124,18 +130,24 @@ class ICLR(object):
 	'''
 	def accepted_papers(self, use_checkpoint=True):
 
-		url = self.proceedings_urls['2022']['main']
-		sections = ['oral-submissions', 'spotlight-submissions', 'poster-submissions']
+		url = self.driver.get(self.proceedings_urls['2022']['main'])
+		delay = 500
 
-		for sect in sections:
-			self.driver.get('#'.join([url, sect]))
-			delay = 500
+		search_field_xpath = '//*[@id="paper-search-input"]'
+		wait = WebDriverWait(self.driver, delay)
+		wait.until(EC.element_to_be_clickable((By.XPATH, search_field_xpath)))
 
-			search_field_xpath = '//*[@id="paper-search-input"]'
-			wait = WebDriverWait(self.driver, delay)
-			wait.until(EC.element_to_be_clickable((By.XPATH, search_field_xpath)))
+		sections = {
+			'oral-submissions': '/html/body/div[1]/div[3]/div/div/main/div/div[3]/div/div[1]/ul/li[2]/a',  
+			'spotlight-submissions': '/html/body/div[1]/div[3]/div/div/main/div/div[3]/div/div[1]/ul/li[3]/a',
+			'poster-submissions': '/html/body/div[1]/div[3]/div/div/main/div/div[3]/div/div[1]/ul/li[4]/a'
+		}
 
-			self.extract_metadata()
+		for tab_title, tab_xpath in sections.items():
+			print(tab_title)
+			self.driver.find_element(By.XPATH, tab_xpath).click()
+			self.extract_metadata(tab_title)
+			self.driver.execute_script("window.scrollTo(0, 0);")
 
 		# Convert to JSON format
 		self.proceedings = [{ 'title': key, 'authors': val['authors'], 'url': val['url']} for key, val in self.proceedings.items()]
