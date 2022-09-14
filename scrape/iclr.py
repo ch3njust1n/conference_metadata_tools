@@ -4,7 +4,6 @@ import os
 import sys
 import time
 import logging
-from collections import defaultdict
 
 from selenium import webdriver
 from selenium.webdriver.support.ui import WebDriverWait
@@ -12,6 +11,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
 from selenium.common.exceptions import TimeoutException
 from selenium.webdriver import ActionChains
+from selenium.webdriver.common.keys import Keys
 
 from pprint import pprint
 from scrape import utils
@@ -22,7 +22,7 @@ class ICLR(object):
 		self.log = logging.getLogger(logname)
 		self.year = str(year)
 		self.base = ''
-		self.proceedings = defaultdict(dict)
+		self.titles = set()
 		self.proceedings_urls = {
 			'2013': 'https://iclr.cc/archive/2013/conference-proceedings.html',
 			'2014': 'https://iclr.cc/archive/2014/conference-proceedings/',
@@ -58,12 +58,9 @@ class ICLR(object):
 	'''
 	def get_page_count(self):
 		self.driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-		pagination_xpath = '//*[@id="oral-submissions"]/nav/ul'
+		pagination_xpath = '/html/body/div[1]/div[3]/div/div/main/div/div[3]/div/div[2]/div[2]/nav/ul'
 		pagination_bar = self.driver.find_element(By.XPATH, pagination_xpath)
-		pages = len(pagination_bar.find_elements(By.TAG_NAME, 'li')) - 4 # ignore nav buttons
-		self.driver.execute_script("window.scrollTo(0, 0);")
-		
-		return pages
+		return len(pagination_bar.find_elements(By.TAG_NAME, 'li')) - 4
 
 
 	'''
@@ -74,7 +71,13 @@ class ICLR(object):
 	def extract_metadata(self, section):
 		oral_submissions_class = 'note '
 		oral_submissions_id = 'oral-submissions'
-		total_pages = self.get_page_count()
+
+		# total_pages = self.get_page_count()
+		total_pages = 20
+		self.driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.CONTROL + Keys.HOME)
+
+		print(f'{section} has {total_pages} pages')
+		proceedings = []
   
 		def extract_authors(authors):
 			result = []
@@ -90,6 +93,7 @@ class ICLR(object):
 
 			return result
 
+		# TODO: Worse case, brute-force this with a fixed number
 		for page in range(total_pages):
 			submission_section = self.driver.find_element(By.ID, oral_submissions_id)
 			submission_list = submission_section.find_elements(By.CLASS_NAME, oral_submissions_class)
@@ -99,24 +103,33 @@ class ICLR(object):
 			for i in range(1, total_submissions+1):
 				try:
 					title = self.driver.find_element(By.XPATH, f'//*[@id="{section}"]/ul/li[{i}]/h4/a[1]').text.strip()
-					authors = self.driver.find_element(By.XPATH, f'//*[@id="{section}"]/ul/li[{i}]/div[1]')
-					pdf = self.driver.find_element(By.XPATH, f'//*[@id="{sectopm}"]/ul/li[{i}]/h4/a[2]')
 					
-					if title not in self.proceedings:
-						self.proceedings[title] = {
+					if not title in self.titles:
+						self.titles.add(title)
+						# print(title)
+
+						authors = self.driver.find_element(By.XPATH, f'//*[@id="{section}"]/ul/li[{i}]/div[1]')
+						pdf = self.driver.find_element(By.XPATH, f'//*[@id="{section}"]/ul/li[{i}]/h4/a[2]')
+
+						proceedings.append({
 							"title": title,
 							"authors": extract_authors(authors.text),
 							"url": pdf.get_property('href')
-						}
+						})
+
 				except Exception as e:
 					self.log.debug(f'page: {page}\tpaper: {i}\t{e}')
 
 			# Add 4 to account for both left arrows in pagination
 			if page < total_pages - 1:
-				self.driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-				self.driver.find_element(By.XPATH, f'//*[@id="{section}"]/nav/ul/li[{page+4}]/a').click()
-				time.sleep(3)
-				self.driver.execute_script("window.scrollTo(0, 0);")
+				try:
+					self.driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+					self.driver.find_element(By.XPATH, f'//*[@id="{section}"]/nav/ul/li[{page+4}]/a').click()
+					self.driver.execute_script("window.scrollTo(0, 0);")
+				except Exception as e:
+					break
+
+		return proceedings
 		
 
 	'''
@@ -138,19 +151,25 @@ class ICLR(object):
 		wait.until(EC.element_to_be_clickable((By.XPATH, search_field_xpath)))
 
 		sections = {
-			'oral-submissions': '/html/body/div[1]/div[3]/div/div/main/div/div[3]/div/div[1]/ul/li[2]/a',  
+			'poster-submissions': '/html/body/div[1]/div[3]/div/div/main/div/div[3]/div/div[1]/ul/li[4]/a',
 			'spotlight-submissions': '/html/body/div[1]/div[3]/div/div/main/div/div[3]/div/div[1]/ul/li[3]/a',
-			'poster-submissions': '/html/body/div[1]/div[3]/div/div/main/div/div[3]/div/div[1]/ul/li[4]/a'
+			'oral-submissions': '/html/body/div[1]/div[3]/div/div/main/div/div[3]/div/div[1]/ul/li[2]/a',  
 		}
+
+		proceedings = []
 
 		for tab_title, tab_xpath in sections.items():
 			print(tab_title)
-			self.driver.find_element(By.XPATH, tab_xpath).click()
-			self.extract_metadata(tab_title)
-			self.driver.execute_script("window.scrollTo(0, 0);")
+			
+			# Move to the top of the page
+			self.driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.CONTROL + Keys.HOME)
+			time.sleep(3)
 
-		# Convert to JSON format
-		self.proceedings = [{ 'title': key, 'authors': val['authors'], 'url': val['url']} for key, val in self.proceedings.items()]
-		print(f'total: {len(self.proceedings)}')
+			# Click on tab
+			self.driver.find_element(By.XPATH, tab_xpath).click()
+
+			proceedings.extend(self.extract_metadata(tab_title))
+
+		print(f'total": {len(proceedings)}')
   
-		utils.save_json(f'./iclr', f'iclr_{2022}', self.proceedings)
+		utils.save_json(f'./iclr', f'iclr_{2022}', proceedings)
