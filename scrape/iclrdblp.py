@@ -21,21 +21,25 @@ class ICLRDBLP(object):
 		soup = BeautifulSoup(resp.read(), 'html.parser', from_encoding='utf-8')
 		bibtex = soup.find('div', {'id': 'bibtex-section'}).text
 		url = [t for t in bibtex.split(',') if 'url' in t][0]
-		return url.split()[-1].strip()[1:-1]
+		id = url.split('=')[-1].strip()
+		return f'https://openreview.net/pdf?id={id}'
 
 
 	def format_metadata(self, paper):
-		title = paper.find('cite', {'class': 'data tts-content'}).find('span', {'class': 'title'}).text
-		authors = [span.text for span in paper.find('cite', {'class': 'data tts-content'}).find_all('span', {'itemprop': 'author'})]
-		return {
-			'url': self.get_bibtex(paper['id'].split('/')[-1]),
-			'title': title,
-			'authors': utils.format_auths(authors)
-		}
+		try:
+			title = paper.find('cite', {'class': 'data tts-content'}).find('span', {'class': 'title'}).text
+			authors = [span.text for span in paper.find('cite', {'class': 'data tts-content'}).find_all('span', {'itemprop': 'author'})]
+			return {
+				'url': self.get_bibtex(paper['id'].split('/')[-1]),
+				'title': title,
+				'authors': utils.format_auths(authors)
+			}
+		except Exception as e:
+			self.log.debug(e)
 
 
 	def accepted_papers(self, use_checkpoint=True):
-		resp = urllib.request.urlopen('https://dblp.org/db/conf/iclr/iclr2022.html')
+		resp = urllib.request.urlopen(self.base)
 		soup = BeautifulSoup(resp.read(), 'html.parser', from_encoding='utf-8')
 		tags = soup.find_all('ul', {'class': 'publ-list'})
 		
