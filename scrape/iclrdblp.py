@@ -21,7 +21,7 @@ class ICLRDBLP(object):
 		soup = BeautifulSoup(resp.read(), 'html.parser', from_encoding='utf-8')
 		bibtex = soup.find('div', {'id': 'bibtex-section'}).text
 		url = [t for t in bibtex.split(',') if 'url' in t][0]
-		id = url.split('=')[-1].strip()[:-1]
+		id = url.split('=')[-1].strip()[:-1].replace('\\', '')
 		return f'https://openreview.net/pdf?id={id}'
 
 
