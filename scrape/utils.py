@@ -118,3 +118,32 @@ url (string) Complete URL
 '''
 def join_url(parts):
     return '/'.join(p.strip('/') for p in parts)
+
+
+'''
+'''
+def capitalize_hyphenated(name):
+    return ('-'.join([i.capitalize() for i in name.split('-')])).title()
+
+
+'''
+Format authors list
+
+inputs:
+authors (str) Author names separated by commas
+
+outputs:
+authors (list) List of dicts of author information
+'''
+def format_auths(authors):
+    res = []
+
+    for a in authors:
+        a = a.split()
+        res.append({
+            'given_name': capitalize_hyphenated(' '.join(a[:-1]).capitalize()),
+            'family_name': capitalize_hyphenated(a[-1]).title() if len(a) > 1 else '',
+            'institution': None
+        })
+
+    return res
