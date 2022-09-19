@@ -41,12 +41,22 @@ class ICLR(object):
 
 
 	def get_bibtex(self, url):
-		resp = urllib.request.urlopen(f'https://dblp.org/rec/conf/iclr/{url}.html?view=bibtex')
-		soup = BeautifulSoup(resp.read(), 'html.parser', from_encoding='utf-8')
-		bibtex = soup.find('div', {'id': 'bibtex-section'}).text
-		url = [t for t in bibtex.split(',') if 'url' in t][0]
-		id = url.split('=')[-1].strip()[:-1].replace('\\', '')
-		return f'https://openreview.net/pdf?id={id}'
+
+		case = 1
+		try:
+			resp = urllib.request.urlopen(f'https://dblp.org/rec/conf/iclr/{url}.html?view=bibtex')
+			soup = BeautifulSoup(resp.read(), 'html.parser', from_encoding='utf-8')
+			bibtex = soup.find('div', {'id': 'bibtex-section'}).text
+			url = [t for t in bibtex.split(',') if 'url' in t][0]
+			id = url.split('=')[-1].strip()[:-1].replace('\\', '')
+			return f'https://openreview.net/pdf?id={id}'
+		except Exception as e:
+			resp = urllib.request.urlopen(f'https://dblp.org/rec/journals/corr/{url}.html?view=bibtex')
+			soup = BeautifulSoup(resp.read(), 'html.parser', from_encoding='utf-8')
+			bibtex = soup.find('div', {'id': 'bibtex-section'}).text
+			url = [t for t in bibtex.split(',') if 'url' in t][0]
+			id = url.split('/')[-1].strip()[:-1].replace('\\', '')
+			return f'https://arxiv.org/pdf/{id}.pdf'
 
 
 	def format_metadata(self, paper):
