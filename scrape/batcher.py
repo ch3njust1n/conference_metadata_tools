@@ -68,7 +68,7 @@ def batch_process(data, func, use_tqdm=True):
             for p in procs: p.start(); p.join()
             
             while(not q.empty()):
-                results.append(q.get())
+                if q.get(): results.append(q.get())
 
             pbar.update(len(batch))
             
@@ -86,7 +86,7 @@ def batch_thread(data, func, threads=8, use_tqdm=True):
             for t in tasks: t.start(); t.join()
             
             while(not q.empty()):
-                results.append(q.get())
+                if q.get(): results.append(q.get())
             
             pbar.update(len(batch))
             
