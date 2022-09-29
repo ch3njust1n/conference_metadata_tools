@@ -18,7 +18,6 @@ class PapersWithCode(object):
 		self.base = f"https://paperswithcode.com/paper/{self.format_title(title)}"
 		self.log = logging.getLogger(logname)
 		self.title = title
-		self.abstract = self.extract_abstract__()
 	
   
 	'''
@@ -67,7 +66,7 @@ class PapersWithCode(object):
 	outputs:
 	abstract (str) Paper abstract
  	'''
-	def extract_abstract__(self):
+	def extract_abstract(self):
 		try:
 			resp = urllib.request.urlopen(self.base)
 			soup = BeautifulSoup(resp.read(), 'html.parser', from_encoding='utf-8')

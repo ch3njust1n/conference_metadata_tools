@@ -4,6 +4,7 @@ Updates metadata
 9/29/2022
 '''
 
+import os
 import json
 import logging
 import urllib
@@ -12,11 +13,13 @@ from http.client import InvalidURL
 
 import scrape.utils as utils
 from scrape.paperswithcode import PapersWithCode
+from parse import pdfparser
 
 
 class Metadata(object):
-	def __init__(self, conference, year, logname):
+	def __init__(self, conference, year, logname, cache_dir=''):
 		self.logname = logname
+		self.cache_dir = cache_dir
 		self.conference = conference		
 		self.year = str(year)
 		self.conf = {
@@ -63,16 +66,26 @@ class Metadata(object):
 
 	'''
 	Update metadata and save
+ 
+	inputs:
+	use_cache (bool) If True, will use extract from cached pdf
  	'''
-	def update_abstract(self):
+	def update_abstract(self, use_cache=False):
 		metadata = self.get_metadata()
 		
 		for i, data in enumerate(metadata):
 			title = data['title']
 			
 			try:
-				src = PapersWithCode(title, self.logname)
-				metadata[i]['abstract'] = src.abstract
+				pwc = PapersWithCode(title, self.logname)
+				abstract = pwc.extract_abstract()
+				
+				if not abstract and use_cache:
+					pdf_path = f"{os.path.join(self.cache_dir, data['title'].lower().replace(' ', '-'))}.pdf"
+					abstract = pdfparser.extract_abstract(pdf_path, self.logname)
+	 
+				metadata[i]['abstract'] = abstract
+					
 			except (URLError, InvalidURL) as e:
 				self.log.debug(f'{self.conference}-{self.year}-{title}')
 
