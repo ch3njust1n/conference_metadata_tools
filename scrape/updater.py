@@ -95,11 +95,19 @@ class Metadata(object):
 
 		
 class Updater(object):
-	def __init__(self, conference, year, logname):
+	def __init__(self, conference, year, logname, cache_dir=''):
 		self.conference = conference
 		self.year = year
 		self.logname = logname
-		self.metadata = Metadata(conference, year, logname)
+		self.metadata = Metadata(conference, year, logname, cache_dir)
+		self.index = {}
+  
+		if cache_dir:
+			self.build_index()
+  
+  
+	def build_index(self):
+		self.index = { hash(f) for f in os.listdir(self.cache_dir) }
 		
 	
 	'''

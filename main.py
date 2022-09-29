@@ -71,9 +71,14 @@ def main():
 		years = range(1970, date.today().year + 1) # TODO: make programmatic with * for all
 		prod = list(product(conferences, years))
   
+		cache_dir = '.cache'
+  
+		if not os.path.exists(cache_dir):
+			os.makedirs(cache_dir)
+  
 		with tqdm(total=len(prod)) as pbar:
 			for name, yr in prod:
-				manager = updater.Updater(name, yr, logname)
+				manager = updater.Updater(name, yr, logname, cache_dir)
 				manager.update('abstract') # TODO: make programmable later
 				pbar.update(1)
  
