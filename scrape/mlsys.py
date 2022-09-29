@@ -11,7 +11,6 @@ from urllib.error import URLError
 from http.client import InvalidURL
 
 from tqdm import tqdm
-from lxml import etree
 from bs4 import BeautifulSoup
 from pprint import pprint
 from selenium import webdriver
@@ -54,8 +53,8 @@ class MLSYS(object):
 	def format_auths(self, authors):
 		res = []
 
-		for a in authors.split('·'):
-			a = a.split()
+		for a in authors.split(','):
+			a = a.strip().split()
 			res.append({
 				'given_name': self.capitalize_hyphenated(' '.join(a[:-1]).capitalize()),
 				'family_name': self.capitalize_hyphenated(a[-1]).title() if len(a) > 1 else '',
@@ -106,35 +105,34 @@ class MLSYS(object):
 			i  = 1
 			while 1:
 				try:
-					link_xpath = f'/html/body/div[2]/div/ul/li[{i}]/a'
-					wait.until(EC.element_to_be_clickable((By.XPATH, link_xpath)))
+					link_xpath = f'/html/body/div[2]/div/ul/li[{i}]/a' 
+					if i == 1: wait.until(EC.element_to_be_clickable((By.XPATH, link_xpath)))
 	  
-					el = self.driver.find_element(By.XPATH, link_xpath)
-					href = el.get_attribute('href')
+					title = self.driver.find_element(By.XPATH, link_xpath)
+					href = title.get_attribute('href')
 					file_hash = href.split('/')[-1].split('-')[0]
-
-					el.click()
-					wait.until(EC.element_to_be_clickable((By.XPATH, '/html/body/div[2]/div/p[1]/a')))
-	
-					authors_xpath = f'/html/body/div[2]/div/p[2]/i'
+	 	 
+					authors_xpath = f'/html/body/div[2]/div/ul/li[{i}]/i'
 					authors = self.driver.find_element(By.XPATH, authors_xpath).text
-     
-					abstract_xpath = f'/html/body/div[2]/div/p[4]'
-					abstract = self.driver.find_element(By.XPATH, abstract_xpath).text
-		
+
 					if file_hash:
 						papers.append({
-							"title": el.title,
-							"abstract": abstract,
-							"authors": authors,
+							"title": title.text,
+							"abstract": href,
+							"authors": self.format_auths(authors),
 							"url": f'{self.base}/file/{file_hash}-Paper.pdf'
 						})
-      
-					self.driver.execute_script("window.history.go(-1)")
-		
+	  
 					i += 1
 				except Exception as e:
 					break
+ 
+			for i, p in tqdm(enumerate(papers)):
+				resp = urllib.request.urlopen(p['abstract'])
+				soup = BeautifulSoup(resp.read(), 'html.parser', from_encoding='utf-8')
+				papers[i]['abstract'] = max([p.text.replace('\n', ' ').strip() for p in soup.find_all('p')], key=len)
+    
+			pprint(papers)
   
 			utils.save_json('./temp', f'mlsys_{self.year}', papers)
   
