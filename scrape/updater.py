@@ -11,6 +11,7 @@ import urllib
 from urllib.error import URLError
 from http.client import InvalidURL
 
+import redis
 import scrape.utils as utils
 from scrape.paperswithcode import PapersWithCode
 from parse import pdfparser
@@ -19,6 +20,7 @@ from parse import pdfparser
 class Metadata(object):
 	def __init__(self, conference, year, logname, cache_dir=''):
 		self.logname = logname
+		self.log = logging.getLogger(logname)
 		self.cache_dir = cache_dir
 		self.conference = conference		
 		self.year = str(year)
@@ -74,15 +76,31 @@ class Metadata(object):
 		metadata = self.get_metadata()
 		
 		for i, data in enumerate(metadata):
-			title = data['title']
-			
+			title = data['title'].lower().replace(' ', '-')
+			author = data['authors'][0]['family_name'].lower()
+			filename = f'{self.year}-{author}-{title}'
+			urls = data['url'] if isinstance(data['url'], list) else [data['url']]
+
 			try:
 				pwc = PapersWithCode(title, self.logname)
 				abstract = pwc.extract_abstract()
 				
 				if not abstract and use_cache:
-					pdf_path = f"{os.path.join(self.cache_dir, data['title'].lower().replace(' ', '-'))}.pdf"
-					abstract = pdfparser.extract_abstract(pdf_path, self.logname)
+					temp = '/Volumes/SG-2TB/library/temp'
+					if not os.path.exists(temp):
+						os.makedirs(temp)
+					save_path = os.path.join(temp, filename)
+     
+					for i, link in enumerate(urls):
+						try:
+							with urllib.request.urlopen(link) as resp, open(temp, 'wb') as out:
+								save_name = f'{save_path}_{i}.pdf' if i > 0 else f'{save_path}.pdf'
+								file, _ = urllib.request.urlretrieve(link, save_name)
+						except InvalidURL as e:
+							self.log.debug(f'{e} - {filename}')
+					abstract = pdfparser.extract_abstract(save_path, self.conference, self.logname)
+     
+					self.log.info(abstract)
 	 
 				metadata[i]['abstract'] = abstract
 					
@@ -99,21 +117,24 @@ class Updater(object):
 		self.conference = conference
 		self.year = year
 		self.logname = logname
+		self.cache_dir = cache_dir
 		self.metadata = Metadata(conference, year, logname, cache_dir)
-		self.index = {}
   
 		if cache_dir:
+			self.index = redis.Redis(host='localhost', port=6379)
 			self.build_index()
   
   
 	def build_index(self):
-		self.index = { hash(f) for f in os.listdir(self.cache_dir) }
+		for f in os.listdir(self.cache_dir):
+			self.index.set(hash(f), os.path.join(self.cache_dir, f))
 		
 	
 	'''
 	inputs:
-	property (str) Metadata property to update
+	property  (str)  Metadata property to update
+	use_cache (bool) If True, default to saved papers to extract data
  	'''
-	def update(self, property):
+	def update(self, property, use_cache=False):
 		if property == 'abstract':
-			self.metadata.update_abstract()
+			self.metadata.update_abstract(use_cache)

@@ -85,8 +85,13 @@ def format_filename(filename):
 	return f'{filename}.pdf' if not filename.endswith('.pdf') else filename
 
 
-def extract_abstract(paper_path, logname):
+def extract_abstract(paper_path, conference, logname):
 	log = logging.getLogger(logname)
+ 
+	if not os.path.exists(paper_path):
+		log.debug(f'FileNotFoundError: conference: {conference}\tfile: {paper_path}')
+		return ''
+ 
 	section = 'abstract'
 	pdf = reader(paper_path)
 	title = paper_path.split('/')[-1].split('.')[0]
@@ -104,24 +109,27 @@ def extract_abstract(paper_path, logname):
 			break
 
 	if abstract_line_number != -1 and intro_line_number != -1:
-		log.info(' '.join(page[abstract_line_number+1:intro_line_number]))
+		return ' '.join(page[abstract_line_number+1:intro_line_number])
 	elif abstract_line_number != -1 and intro_line_number == -1:
-		log.info(' '.join(page[abstract_line_number+1:]))
+		return ' '.join(page[abstract_line_number+1:])
 	else:
-		line_heights = [len(line) for line in first_page.split('\n')]
-		start, end = endpoints(longest_sublist(grouping(line_heights)))
-		sub_prompt = first_page.split('\n')[start:end+1]
+		log.info(paper_path)
+		return ''
+		# line_heights = [len(line) for line in first_page.split('\n')]
+		# start, end = endpoints(longest_sublist(grouping(line_heights)))
+		# sub_prompt = first_page.split('\n')[start:end+1]
   
-		prompt = f"Only extract and output the abstract from and correct spelling and grammar and split substrings into individual words:\n\"{sub_prompt}\"\n"
-		response = parse_with_codex(prompt, logname)
-		unformatted_abstract = flatten([r['text'].strip().split('\n') for r in response['choices']]).pop()
+		# prompt = f"Only extract and output the abstract from and correct spelling and grammar and split substrings into individual words:\n\"{sub_prompt}\"\n"
+		# response = parse_with_codex(prompt, logname)
+		# unformatted_abstract = flatten([r['text'].strip().split('\n') for r in response['choices']]).pop()
   
-		prompt = f"Correct the spelling and grammar and split substrings into individual words:\n\"{unformatted_abstract}\"\n"
-		response = parse_with_codex(prompt, logname)
+		# prompt = f"Correct the spelling and grammar and split substrings into individual words:\n\"{unformatted_abstract}\"\n"
+		# response = parse_with_codex(prompt, logname)
   
-		codex_extract = [r['text'].strip().replace('"','').replace('\n', ' ') for r in response['choices']].pop()
-		codex_extract = f'{codex_extract} (extracted by OpenAI Codex)'
-		log.info(codex_extract)
+		# codex_extract = [r['text'].strip().replace('"','').replace('\n', ' ') for r in response['choices']].pop()
+		# codex_extract = f'{codex_extract} (extracted by OpenAI Codex)'
+		
+		# return codex_extract
 
 
 def extract_citations(paper_path, logname):

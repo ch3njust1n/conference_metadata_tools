@@ -71,7 +71,7 @@ def main():
 		years = range(1970, date.today().year + 1) # TODO: make programmatic with * for all
 		prod = list(product(conferences, years))
   
-		cache_dir = '.cache'
+		cache_dir = '/Volumes/SG-2TB/library/'
   
 		if not os.path.exists(cache_dir):
 			os.makedirs(cache_dir)
@@ -79,7 +79,7 @@ def main():
 		with tqdm(total=len(prod)) as pbar:
 			for name, yr in prod:
 				manager = updater.Updater(name, yr, logname, cache_dir)
-				manager.update('abstract') # TODO: make programmable later
+				manager.update('abstract', use_cache=True) # TODO: make programmable later
 				pbar.update(1)
  
 	print('total time: ', time() - start_time)
