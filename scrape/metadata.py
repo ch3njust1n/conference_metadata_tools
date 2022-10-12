@@ -5,6 +5,7 @@ from scrape.iclr import ICLR
 from scrape.acl import *
 from scrape.cvf import CVF
 from scrape.mlsys import MLSYS
+from scrape.ijcai import IJCAI
 
 def conference(name, year, logname):
 	name = name.lower()
@@ -15,6 +16,7 @@ def conference(name, year, logname):
 	if name in ['pmlr']: return PMLR(year, logname)
 	if name in ['cvf']: return CVF(year, logname)
 	if name in ['mlsys', 'mlsystem', 'mlsystems']: return MLSYS(year, logname)
+	if name in ['ijcai']: return IJCAI(year, logname)
 	# convert string to class object as in datapipe
 	
 	return None

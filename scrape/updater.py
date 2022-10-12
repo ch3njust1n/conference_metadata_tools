@@ -5,15 +5,21 @@ Updates metadata
 '''
 
 import os
+import sys
 import json
 import logging
 import urllib
+import inspect
 from urllib.error import URLError
 from http.client import InvalidURL
 
+# currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
+# parentdir = os.path.dirname(currentdir)
+# sys.path.insert(0, parentdir) 
+
 import scrape.utils as utils
 from scrape.paperswithcode import PapersWithCode
-from parse import pdfparser
+from scrape.parse.pdfparser import extract_abstract
 
 
 class Metadata(object):
