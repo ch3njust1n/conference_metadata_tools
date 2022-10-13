@@ -1,6 +1,8 @@
 import os
 from itertools import zip_longest
-from multiprocessing import Process, Queue
+import multiprocessing as mp
+import threading as th
+import queue
 from tqdm import tqdm
 
 
@@ -38,12 +40,21 @@ def grouper(iterable, n, *, incomplete='fill', fillvalue=None):
 Wrapper for function to execute in process so can place result in multiprocessing queue
 
 inputs:
-func  (Function)              Function that operates on one element of the data and returns a value
-task  (*)                     Data to be operated on by func
-queue (multiprocessing.Queue) Result queue
+func   (Function)              Function that operates on one element of the data and returns a value
+task   (*)                     Data to be operated on by func
+queue  (multiprocessing.Queue) Result queue
+args   (*, optional)           Required function arguments
+kwargs (**, optional)          Optional key-word arguments
 '''
-def proc_wrapper(func, task, queue):
-    return queue.put(func(task))
+def task_wrapper(func, task, queue, args=None, kwargs=None):
+    if args: 
+        return queue.put(func(task, *args))
+    elif kwargs: 
+        return queue.put(func(task, **kwargs))
+    elif args and kwargs: 
+        return queue.put(func(task, *args, **kwargs))
+    else:
+        return queue.put(func(task))
 
 
 '''
@@ -56,16 +67,45 @@ outputs:
 results (list) Processed data
 '''
 def batch_process(data, func, use_tqdm=True):
-    q = Queue()
+    q = mp.Queue()
     results = []
     grouped = grouper(data, os.cpu_count())
-    # grouped = tqdm(grouped) if use_tqdm else grouped
     
-    for batch in tqdm(grouped):
-        procs = [Process(target=proc_wrapper, args=(func, task, q,)) for task in batch]
-        for p in procs: p.start(); p.join()
-        
-        while(not q.empty()):
-            results.append(q.get())
+    with tqdm(total=len(data)) as pbar:
+        for batch in grouped:
+            procs = [mp.Process(target=task_wrapper, args=(func, task, q,)) for task in batch]
+            for p in procs: p.start(); p.join()
+            
+            while(not q.empty()):
+                if q.get(): results.append(q.get())
+
+            pbar.update(len(batch))
+            
+    return results
+
+
+'''
+inputs:
+data     (iterable)
+func     (function)
+args     (tuple, optional)
+kwargs   (dict, optional)
+threads  (int, optional)
+use_tqdm (bool, optional)
+'''
+def batch_thread(data, func, args=None, kwargs=None, threads=8, use_tqdm=True):
+    q = queue.Queue()
+    results = []
+    grouped = grouper(data, threads)
+    
+    with tqdm(total=len(data)) as pbar:
+        for batch in grouped:
+            tasks = [th.Thread(target=task_wrapper, args=(func, task, q, args, kwargs,)) for task in batch]
+            for t in tasks: t.start(); t.join()
+            
+            while(not q.empty()):
+                if q.get(): results.append(q.get())
+            
+            pbar.update(len(batch))
             
     return results

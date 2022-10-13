@@ -18,7 +18,6 @@ class CVF(object):
 		self.base = f'https://openaccess.thecvf.com' 
 		self.failed = defaultdict(list)
 		self.log = logging.getLogger(logname)
-		self.workshop = f'https://openaccess.thecvf.com/CVPR2022_workshops/menu'
 
 
 	'''
@@ -64,7 +63,8 @@ class CVF(object):
 		return proceedings
 
 
-	def extract_papers(self, page):
+	def extract_papers(self, url, title):
+		page = urllib.request.urlopen(url)
 		soup = BeautifulSoup(page.read(), 'html.parser', from_encoding='utf-8')
 		count = 0
 		proceedings = []
@@ -73,7 +73,8 @@ class CVF(object):
 		i = 0
 		for tag in soup.find('dl').children:
 			if isinstance(tag, Tag):
-				if 'go back' in tag.find_all('a')[0].text.lower(): 
+				atag = tag.find_all('a', href=True)[0]
+				if 'back' in atag.text.lower() and '/'+title == atag['href']: 
 					continue
 				else:
 					count = count % 3 + 1
@@ -97,13 +98,11 @@ class CVF(object):
 						paper["url"] = [utils.join_url([self.base, link['href']]) for link in tag.find_all('a', href=True) if link['href'].endswith('.pdf')]
 						proceedings.append(paper)
 
-					print(paper)
-					if count == 3: print('\n\n')
 
 		return proceedings
 
 	
-	def accepted_papers(self, use_checkpoint=True, kw='neurips'):
+	def accepted_papers(self, use_checkpoint=True, kw='wacv'):
 		completed_years =  utils.load_cached_years(kw)
 		proceedings = self.build_proceedings_list(kw=kw)
 
@@ -111,15 +110,15 @@ class CVF(object):
 			if year in completed_years:
 				continue
 			
-			print(f'scraping {kw}{year}...')
-			conf_url =f"{self.base}/{conf.replace(' ','')}"
-			page = urllib.request.urlopen(conf_url)
-			soup = BeautifulSoup(page.read(), 'html.parser', from_encoding='utf-8')
-			day_urls = utils.get_tags(soup, 'a', 'href', 'day=')
+			title = conf.replace(' ','')
+			conf_url =f"{self.base}/{title}"
+			print(f'scraping {conf_url}')
+
+			day_urls = utils.get_tags(conf_url, 'a', 'href', 'day=')
 
 			if len(day_urls) > 0:
 				if any(tag.endswith('day=all') for tag in day_urls):
-					papers = self.extract_papers(urllib.request.urlopen(conf_url+'?day=all'))
+					papers = self.extract_papers(conf_url+'?day=all', title)
 					utils.save_json(f'./{kw}', f'{kw}_{year}', papers)
 				else:
 					papers = []
@@ -127,9 +126,9 @@ class CVF(object):
 					for url in day_urls:
 						if url.endswith('day=all'): continue
 						url = url.split('?')[1]
-						papers.extend(self.extract_papers(urllib.request.urlopen(conf_url+'?'+url)))
+						papers.extend(self.extract_papers(conf_url+'?'+url, title))
 
 					utils.save_json(f'./{kw}', f'{kw}_{year}', papers)
 			else:
-				pass
-			break
+				papers = self.extract_papers(conf_url, title)
+				utils.save_json(f'./{kw}', f'{kw}_{year}', papers)
