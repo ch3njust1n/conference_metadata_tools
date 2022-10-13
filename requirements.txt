@@ -1,0 +1,8 @@
+tqdm>=4.64.1
+beautifulsoup4>=4.11.1
+colorama>=0.4.5
+selenium>=4.5.0
+redis>=4.3.4
+openai>=0.23.1
+backoff>=2.2.1
+PyPDF2>=2.11.1
