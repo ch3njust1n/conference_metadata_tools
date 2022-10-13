@@ -47,7 +47,14 @@ args   (*, optional)           Required function arguments
 kwargs (**, optional)          Optional key-word arguments
 '''
 def task_wrapper(func, task, queue, args=None, kwargs=None):
-    return queue.put(func(task, *args, **kwargs))
+    if args: 
+        return queue.put(func(task, *args))
+    elif kwargs: 
+        return queue.put(func(task, **kwargs))
+    elif args and kwargs: 
+        return queue.put(func(task, *args, **kwargs))
+    else:
+        return queue.put(func(task))
 
 
 '''

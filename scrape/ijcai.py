@@ -4,6 +4,7 @@ import os
 import re
 import sys
 import json
+import string
 import logging
 import urllib.request
 from datetime import datetime
@@ -89,19 +90,29 @@ class IJCAI(object):
 		first_auth_lastname = authors[0]['family_name']
 		return f'{year}-{first_auth_lastname}-{title.strip().lower()}.pdf'
 
+	'''
+	input:
+	title (str) Paper title
+ 
+	output:
+	title (str) Paper without trailing punctuation
+ 	'''
+	def remove_special_characters(self, title):
+		if title[-1] in string.punctuation:
+			return title[:-1]
+		return title
 
 	'''
 	inputs:
-	paper (bs4.Tag)
+	paper (bs4.element.Tag)
  
 	outputs:
 	
  	'''
 	def format_metadata(self, paper, year):
 		try:
-			print(type(paper))
 			citeTag = paper.find('cite', {'class': 'data tts-content'})
-			title = citeTag.find('span', {'class': 'title'}).text
+			title = self.remove_special_characters(citeTag.find('span', {'class': 'title'}).text)
 			authors = [span.text for span in citeTag.find_all('span', {'itemprop': 'author'})]
 			authors =  utils.format_auths(authors)
 			formatted_title = self.format_title(year, authors, title)
@@ -139,12 +150,17 @@ class IJCAI(object):
 					proceeding_urls[year].append(url)
 			
 		metadata = []
+		total = sum(len(urls) for urls in proceeding_urls.values())
   
-		for year, urls in proceeding_urls.items():
-			for url in urls:
-				metadata.extend(self.get_metadata(url, year))
-				break
-			break
+		with tqdm(total=total) as pbar:
+			for year, urls in proceeding_urls.items():
+				for url in urls:
+					metadata.extend(self.get_metadata(url, year))
+					print('\n')
+					pprint(metadata)
+					print('\n')
+					pbar.update(1)
+
 
 		pprint(metadata)
 		# utils.save_json('./temp/output', f'ijcai{self.year}-{utils.unix_epoch()}', metadata)
