@@ -147,3 +147,53 @@ def format_auths(authors):
         })
 
     return res
+
+'''
+Detect if a string contains numbers 00 - 99
+
+input:
+string (str) String containing numbers
+
+output:
+result (bool) True if string contains numbers 00 - 99
+'''
+def has_two_digits(string):
+    pattern = r"\D\d\d\D"
+    result = re.search(pattern, string)
+    return result != None
+
+
+'''
+Extracts any two digit number from a string
+
+input:
+text (str) String containing numbers
+
+output:
+year (str) Full year
+'''
+def get_two_digit_year(text):
+    regex = r"\D(\d\d)\D"
+    matches = re.finditer(regex, text)
+    for match in matches:
+        year = match.group(1)
+        if int(year) > 22:
+            return f'19{year}'
+        else:
+            return f'20{year}'
+
+
+'''
+Extracts any four digit number from a string
+
+input:
+text (str) String containing numbers
+
+output:
+year (str) Full year
+'''
+def get_four_digit_year(text):
+    regex = r"\D(\d\d\d\d)\D"
+    matches = re.finditer(regex, text)
+    for match in matches:
+        return match.group(1)

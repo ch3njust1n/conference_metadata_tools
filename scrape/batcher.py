@@ -40,12 +40,14 @@ def grouper(iterable, n, *, incomplete='fill', fillvalue=None):
 Wrapper for function to execute in process so can place result in multiprocessing queue
 
 inputs:
-func  (Function)              Function that operates on one element of the data and returns a value
-task  (*)                     Data to be operated on by func
-queue (multiprocessing.Queue) Result queue
+func   (Function)              Function that operates on one element of the data and returns a value
+task   (*)                     Data to be operated on by func
+queue  (multiprocessing.Queue) Result queue
+args   (*, optional)           Required function arguments
+kwargs (**, optional)          Optional key-word arguments
 '''
-def task_wrapper(func, task, queue):
-    return queue.put(func(task))
+def task_wrapper(func, task, queue, args=None, kwargs=None):
+    return queue.put(func(task, *args, **kwargs))
 
 
 '''
@@ -75,14 +77,23 @@ def batch_process(data, func, use_tqdm=True):
     return results
 
 
-def batch_thread(data, func, threads=8, use_tqdm=True):
+'''
+inputs:
+data     (iterable)
+func     (function)
+args     (tuple, optional)
+kwargs   (dict, optional)
+threads  (int, optional)
+use_tqdm (bool, optional)
+'''
+def batch_thread(data, func, args=None, kwargs=None, threads=8, use_tqdm=True):
     q = queue.Queue()
     results = []
     grouped = grouper(data, threads)
     
     with tqdm(total=len(data)) as pbar:
         for batch in grouped:
-            tasks = [th.Thread(target=task_wrapper, args=(func, task, q,)) for task in batch]
+            tasks = [th.Thread(target=task_wrapper, args=(func, task, q, args, kwargs,)) for task in batch]
             for t in tasks: t.start(); t.join()
             
             while(not q.empty()):
