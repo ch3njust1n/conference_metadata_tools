@@ -149,18 +149,14 @@ class IJCAI(object):
 					year = get_four_digit_year(url)
 					proceeding_urls[year].append(url)
 			
-		metadata = []
 		total = sum(len(urls) for urls in proceeding_urls.values())
   
 		with tqdm(total=total) as pbar:
 			for year, urls in proceeding_urls.items():
+				metadata = []
+    
 				for url in urls:
 					metadata.extend(self.get_metadata(url, year))
-					print('\n')
-					pprint(metadata)
-					print('\n')
 					pbar.update(1)
 
-
-		pprint(metadata)
-		# utils.save_json('./temp/output', f'ijcai{self.year}-{utils.unix_epoch()}', metadata)
+				utils.save_json('./temp/output', f'ijcai{year}', metadata)

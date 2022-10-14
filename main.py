@@ -71,7 +71,7 @@ def main():
 		years = range(1970, date.today().year + 1) # TODO: make programmatic with * for all
 		prod = list(product(conferences, years))
   
-		cache_dir = '/Downloads/cache'
+		cache_dir = './cache'
   
 		if not os.path.exists(cache_dir):
 			os.makedirs(cache_dir)
