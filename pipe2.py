@@ -30,9 +30,13 @@ def main():
   
 	index = defaultdict(list)
 	images = convert_from_path('/Volumes/SG-2TB/ijcai/ijcai-1979.pdf')
-	
+	total = len(images)
+ 
 	for i, img in tqdm(enumerate(images)):
-		index[i].extend(model.extract(np.array(img)))
+		img.save(f'/Volumes/SG-2TB/ijcai/pages/{i}.jpg', 'JPEG')
+  
+	for i in range(total):
+		index[i].extend(model.extract(f'/Volumes/SG-2TB/ijcai/pages/{i}.jpg'))
 
 	for i in tqdm(range(len(index))):
 		page_scores = defaultdict(int)
