@@ -68,7 +68,7 @@ def main():
 		
 		supported_api = 'https://raw.githubusercontent.com/ch3njust1n/conference_metadata/main/api/conferences.txt'
 		conferences = [line.decode('utf-8').strip() for line in urllib.request.urlopen(supported_api)] # TODO: make programmatic with * for all
-		years = range(1970, date.today().year + 1) # TODO: make programmatic with * for all
+		years = range(1960, date.today().year + 1) # TODO: make programmatic with * for all
 		prod = list(product(conferences, years))
   
 		cache_dir = './cache'

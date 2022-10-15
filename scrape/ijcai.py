@@ -6,6 +6,7 @@ import sys
 import json
 import string
 import logging
+from this import d
 import urllib.request
 from datetime import datetime
 from collections import defaultdict
@@ -16,8 +17,9 @@ from itertools import groupby
 import scrape.utils as utils
 from bs4 import BeautifulSoup
 from urllib.error import HTTPError
+from pprint import pprint
 
-from scrape.batcher import batch_thread
+from scrape.batcher import batch_process, batch_thread
 from scrape.utils import get_four_digit_year, get_two_digit_year, has_two_digits
 
 class IJCAI(object):
@@ -63,7 +65,7 @@ class IJCAI(object):
 	def get_index(self):
 		resp = urllib.request.urlopen(self.index)
 		soup = BeautifulSoup(resp.read(), 'html.parser', from_encoding='utf-8')
-		return [atag['href'] for atag in soup.find_all('a', href=True) if atag['href'].startswith('https://dblp.org/db/conf/ijcai/')]
+		return [atag['href'] for atag in soup.find_all('a', href=True) if atag['href'].startswith('https://dblp.org/db/conf/ijcai/')] 
 
 
 	'''
@@ -111,6 +113,8 @@ class IJCAI(object):
  	'''
 	def format_metadata(self, paper, year):
 		try:
+			if not paper: return
+   
 			citeTag = paper.find('cite', {'class': 'data tts-content'})
 			title = self.remove_special_characters(citeTag.find('span', {'class': 'title'}).text)
 			authors = [span.text for span in citeTag.find_all('span', {'itemprop': 'author'})]
@@ -123,7 +127,7 @@ class IJCAI(object):
 				'authors': authors
 			}
 		except Exception as e:
-			self.log.debug(e)
+			self.log.debug(f'{e}\t{paper}')
 
 
 	def get_metadata(self, url, year):
@@ -131,7 +135,8 @@ class IJCAI(object):
 		soup = BeautifulSoup(resp.read(), 'html.parser', from_encoding='utf-8')
 		tags = soup.find_all('ul', {'class': 'publ-list'})
 		papers = [tag for papers in tags for tag in papers.find_all('li', {'class': 'entry inproceedings'})]
-		return batch_thread(papers, self.format_metadata, args=(year,))
+		return [self.format_metadata(p, year) for p in papers]
+		# return batch_thread(papers, self.format_metadata, args=(year,))
 
 	
 	def accepted_papers(self, use_checkpoint=True, kw=''):
@@ -152,11 +157,15 @@ class IJCAI(object):
 		total = sum(len(urls) for urls in proceeding_urls.values())
   
 		with tqdm(total=total) as pbar:
-			for year, urls in proceeding_urls.items():
+			for year, urls in sorted(proceeding_urls.items()):
 				metadata = []
     
-				for url in urls:
-					metadata.extend(self.get_metadata(url, year))
-					pbar.update(1)
-
-				utils.save_json('./temp/output', f'ijcai{year}', metadata)
+				if year == '1979':
+    
+					for url in urls:
+						metadata.extend(self.get_metadata(url, year))
+						pbar.update(1)
+						break
+					
+					utils.save_json('./temp/output', f'ijcai{year}', metadata)
+					break

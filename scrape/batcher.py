@@ -18,8 +18,8 @@ inputs:
 iterable   (iterable)
 n          (int)
 *          (*)
-incomplete (string)
-fillvalue  (any)
+incomplete (string, optional) Default: fill
+fillvalue  (any, optional)    Default: None
 
 outputs:
 
@@ -46,34 +46,36 @@ queue  (multiprocessing.Queue) Result queue
 args   (*, optional)           Required function arguments
 kwargs (**, optional)          Optional key-word arguments
 '''
-def task_wrapper(func, task, queue, args=None, kwargs=None):
+def task_wrapper(func, task, queue, args=None, kwargs=None):    
     if args: 
-        return queue.put(func(task, *args))
+        queue.put(func(task, *args))
     elif kwargs: 
-        return queue.put(func(task, **kwargs))
+        queue.put(func(task, **kwargs))
     elif args and kwargs: 
-        return queue.put(func(task, *args, **kwargs))
+        queue.put(func(task, *args, **kwargs))
     else:
-        return queue.put(func(task))
+        queue.put(func(task))
 
 
 '''
 inputs:
-data     (list)     List of data to process
-func     (Function) Function that operates on one element of the data and returns a value
-use_tqdm (bool)     True if uses tqdm, else False
+data     (list)            List of data to process
+func     (Function)        Function that operates on one element of the data and returns a value
+args     (tuple, optional) Function arguments
+kwargs   (dict, optional)  Function keyword arguments
+use_tqdm (bool, optional)  True if uses tqdm, else False
 
 outputs:
 results (list) Processed data
 '''
-def batch_process(data, func, use_tqdm=True):
+def batch_process(data, func, args=None, kwargs=None, use_tqdm=True):
     q = mp.Queue()
     results = []
     grouped = grouper(data, os.cpu_count())
     
     with tqdm(total=len(data)) as pbar:
         for batch in grouped:
-            procs = [mp.Process(target=task_wrapper, args=(func, task, q,)) for task in batch]
+            procs = [mp.Process(target=task_wrapper, args=(func, task, q, args, kwargs,)) for task in batch]
             for p in procs: p.start(); p.join()
             
             while(not q.empty()):
@@ -86,12 +88,12 @@ def batch_process(data, func, use_tqdm=True):
 
 '''
 inputs:
-data     (iterable)
-func     (function)
-args     (tuple, optional)
-kwargs   (dict, optional)
-threads  (int, optional)
-use_tqdm (bool, optional)
+data     (iterable)        Iterable of data to process
+func     (Function)        Function that operates on one element of the data and returns a value
+args     (tuple, optional) Function arguments
+kwargs   (dict, optional)  Function keyword arguments
+threads  (int, optional)   Total number of threads to run
+use_tqdm (bool, optional)  True if uses tqdm, else False
 '''
 def batch_thread(data, func, args=None, kwargs=None, threads=8, use_tqdm=True):
     q = queue.Queue()
@@ -99,6 +101,7 @@ def batch_thread(data, func, args=None, kwargs=None, threads=8, use_tqdm=True):
     grouped = grouper(data, threads)
     
     with tqdm(total=len(data)) as pbar:
+        lock = th.Lock()
         for batch in grouped:
             tasks = [th.Thread(target=task_wrapper, args=(func, task, q, args, kwargs,)) for task in batch]
             for t in tasks: t.start(); t.join()
