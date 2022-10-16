@@ -4,6 +4,7 @@ TODO: Merge this into main and refactor as a full pipeline
 
 import json
 import numpy as np
+from time import perf_counter
 from difflib import SequenceMatcher
 from collections import defaultdict
 from itertools import product
@@ -14,13 +15,15 @@ from pprint import pprint
 import scrape.utils as utils
 from scrape.parse.extractor import OCRExtractor
 
-from pdf2image import convert_from_path
+from pdf2image import convert_from_path, pdfinfo_from_path
 
 
 def similarity(a, b):
 	return SequenceMatcher(None, a, b).ratio()
 
 def main():
+	start_time = perf_counter()
+	filename = '/Volumes/SG-2TB/ijcai/ijcai-1979.pdf'
 	model = OCRExtractor(target_section='Title')
 	titles = set()
  
@@ -29,14 +32,23 @@ def main():
 		titles = {p['title'].lower().strip() for p in data}
   
 	index = defaultdict(list)
-	images = convert_from_path('/Volumes/SG-2TB/ijcai/ijcai-1979.pdf')
+	info = pdfinfo_from_path(filename, userpw=None, poppler_path=None)
+	maxPages = info["Pages"]
+	images = []
+
+	for page in range(1, maxPages+1, 10) : 
+		images.extend(convert_from_path(filename, dpi=200, first_page=page, last_page = min(page+10-1,maxPages)))
+
 	total = len(images)
  
+	print(f'Saving pages')
 	for i, img in tqdm(enumerate(images)):
 		img.save(f'/Volumes/SG-2TB/ijcai/pages/{i}.jpg', 'JPEG')
   
-	for i in range(total):
+	for i in tqdm(range(608)):
 		index[i].extend(model.extract(f'/Volumes/SG-2TB/ijcai/pages/{i}.jpg'))
+  
+	utils.save_json('./temp/output', 'pageIndex-0', index)
 
 	for i in tqdm(range(len(index))):
 		page_scores = defaultdict(int)
@@ -45,13 +57,17 @@ def main():
 		for a, b in product(candidates, titles):
 			page_scores[(a,b)] = similarity(a, b)
 		
-		index[i] = max(page_scores, key=lambda key: page_scores[key])[1]
+		try:
+			index[i] = max(page_scores, key=lambda key: page_scores[key])[1]
+		except ValueError as e:
+			print(f'index: {i} failed')
 
 	# Dictionary with keys as page numbers and values as paper titles
-    # Use this dictionary to split the monolithic pdf into individual papers
+	# Use this dictionary to split the monolithic pdf into individual papers
 	pprint(index)
  
-	utils.save_json('./output', 'pageIndex', index)
+	utils.save_json('./temp/output', 'pageIndex', index)
+	print(f'time elapsed: {perf_counter() - start_time} seconds')
 
 if __name__ == "__main__":
 	main()
