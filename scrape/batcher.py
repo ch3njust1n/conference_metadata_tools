@@ -1,4 +1,5 @@
 import os
+from collections import defaultdict
 from itertools import zip_longest
 import multiprocessing as mp
 import threading as th
@@ -71,6 +72,35 @@ results (list) Processed data
 def batch_process(data, func, args=None, kwargs=None, use_tqdm=True):
     q = mp.Queue()
     results = []
+    grouped = grouper(data, os.cpu_count())
+    
+    with tqdm(total=len(data)) as pbar:
+        for batch in grouped:
+            procs = [mp.Process(target=task_wrapper, args=(func, task, q, args, kwargs,)) for task in batch]
+            for p in procs: p.start(); p.join()
+            
+            while(not q.empty()):
+                if q.get(): results.append(q.get())
+
+            pbar.update(len(batch))
+            
+    return results
+
+
+'''
+inputs:
+data     (dict)            List of data to process
+func     (Function)        Function that operates on one element of the data and returns a value
+args     (tuple, optional) Function arguments
+kwargs   (dict, optional)  Function keyword arguments
+use_tqdm (bool, optional)  True if uses tqdm, else False
+
+outputs:
+results (list) Processed data
+'''
+def batch_process_dict(data, func, args=None, kwargs=None, use_tqdm=True):
+    q = mp.Queue()
+    results = defaultdict(type(data.values()[0]))
     grouped = grouper(data, os.cpu_count())
     
     with tqdm(total=len(data)) as pbar:

@@ -11,9 +11,11 @@ from itertools import product
 
 from tqdm import tqdm
 from pprint import pprint
+from scrape.batcher import batch_process
 
 import scrape.utils as utils
 from scrape.parse.extractor import OCRExtractor
+from scrape.batcher import batch_process_dict
 
 from pdf2image import convert_from_path, pdfinfo_from_path
 
@@ -33,23 +35,23 @@ def main():
   
 	pairs = defaultdict(list)
 	index = defaultdict(list)
- 
-	info = pdfinfo_from_path(filename, userpw=None, poppler_path=None)
-	maxPages = info["Pages"]
-	images = []
+	# info = pdfinfo_from_path(filename, userpw=None, poppler_path=None)
+	# maxPages = info["Pages"]
+	# images = []
 
-	for page in range(1, maxPages+1, 10) : 
-		images.extend(convert_from_path(filename, dpi=200, first_page=page, last_page = min(page+10-1,maxPages)))
+	# for page in range(1, maxPages+1, 10) : 
+	# 	images.extend(convert_from_path(filename, dpi=200, first_page=page, last_page = min(page+10-1,maxPages)))
 
-	total = len(images)
+	# total = len(images)
  
-	print(f'Saving pages')
-	for i, img in tqdm(enumerate(images)):
-		img.save(f'/Volumes/SG-2TB/ijcai/pages/{i}.jpg', 'JPEG')
-	
+	# print(f'Saving pages')
+	# for i, img in tqdm(enumerate(images)):
+	# 	img.save(f'/Volumes/SG-2TB/ijcai/pages/{i}.jpg', 'JPEG')
 	pages = 608
-	for i in tqdm(range(pages)):
-		pairs[i].extend(model.extract(f'/Volumes/SG-2TB/ijcai/pages/{i}.jpg'))
+	pairs = {i:f'/Volumes/SG-2TB/ijcai/pages/{i}.jpg' for i in range(pages)}
+	pairs = batch_process_dict(pairs, model.extract)
+	# for i in tqdm(range(pages)):
+		# pairs[i].extend(model.extract(f'/Volumes/SG-2TB/ijcai/pages/{i}.jpg'))
   
 	utils.save_json('./temp/output', 'pageIndex-0', pairs)
 
@@ -64,9 +66,8 @@ def main():
 		try:
 			key = max(page_scores, key=lambda key: page_scores[key])
 			score = page_scores[key]
-			print(key, score)
 			ground_truth = key[0]
-			if score >= 0.9: index[i] = ground_truth
+			if score >= 0.8: index[i] = ground_truth
 		except ValueError as e:
 			continue
 
